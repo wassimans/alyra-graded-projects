@@ -30,11 +30,6 @@ contract Voting is Ownable {
         VotesTallied
     }
 
-    event VoterRegistered(address voterAddress); 
-    event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
-    event ProposalRegistered(uint proposalId);
-    event Voted (address voter, uint proposalId);
-
     // Main data structure to maintain a list of voters by account address.
     mapping (address => Voter) public whitelist;
     // An array to hold all the proposals being voted upon, this will come handy to count total votes for a proposal.
@@ -48,6 +43,11 @@ contract Voting is Ownable {
     // Every time a proposal is added this variable is incremented and will represent the new proposal's ID
     // I prefer to set the ID in the contract rather than in the frontend
     uint private proposalIdCounter = 0;
+
+    event VoterRegistered(address voterAddress); 
+    event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
+    event ProposalRegistered(uint proposalId);
+    event Voted (address voter, uint proposalId);
 
     // Make sure the voter is already registred in the whitelist
     modifier isNewVoter(address _address) {
