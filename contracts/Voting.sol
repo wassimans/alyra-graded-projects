@@ -2,7 +2,9 @@
 
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
+
 
 contract Voting is Ownable {
 
@@ -48,7 +50,14 @@ contract Voting is Ownable {
     uint private proposalIdCounter = 0;
 
     // Make sure the voter is already registred in the whitelist
-    modifier voterAlreadyExists(address _address) {
+    modifier isNewVoter(address _address) {
+        bool isVoterRegistred = whitelist[_address].isRegistered;
+        require(!isVoterRegistred, "Voter already registred!");
+        _;
+    }
+
+    // Make sure the voter is already registred in the whitelist
+    modifier isRegisteredVoter(address _address) {
         bool isVoterRegistred = whitelist[_address].isRegistered;
         require(isVoterRegistred, "Voter not registred!");
         _;
@@ -62,11 +71,25 @@ contract Voting is Ownable {
         _;
     }
 
+    // Make sure the voter starts proposing only when proposal session is open
+    modifier isProposalSessionOpen() {
+        bool proposalSessionOpen = workflowStatus == WorkflowStatus.ProposalsRegistrationStarted;
+        require(proposalSessionOpen, "Proposal session is not open!");
+        _;
+    }
+
+        // Make sure the voter starts proposing only when proposal session is open
+    modifier isVotingSessionOpen() {
+        bool votingSessionOpen = workflowStatus == WorkflowStatus.VotingSessionStarted;
+        require(votingSessionOpen, "Voting session is not open!");
+        _;
+    }
+
     /**
      * @dev Register new voter.
      * @param _address The address of the voter.
      */
-    function registerNewVoter(address _address) external onlyOwner voterAlreadyExists(_address) {
+    function registerNewVoter(address _address) external onlyOwner isNewVoter(_address) {
         Voter memory newVoter = Voter(true, false, 0);
         whitelist[_address] = newVoter;
         voterList.push(_address);
@@ -86,7 +109,7 @@ contract Voting is Ownable {
      * @param _address The address of the voter who's proposing the new proposal.
      * @param _proposalDescription Proposal description.
      */
-    function registerProposal(address _address, string memory _proposalDescription) public voterAlreadyExists(_address) {
+    function registerProposal(address _address, string memory _proposalDescription) public isRegisteredVoter(_address) isProposalSessionOpen() {
         proposalIdCounter++;
         Proposal memory newProposal = Proposal(proposalIdCounter, _proposalDescription, 0);
         proposalList.push(newProposal);
@@ -114,7 +137,7 @@ contract Voting is Ownable {
      * @param _address The voter's address.
      * @param _proposalId The ID of the proposal.
      */
-    function voteOnProposal(address _address, uint _proposalId) public voterAlreadyExists(_address) voterDidnotVote(_address, _proposalId) {
+    function voteOnProposal(address _address, uint _proposalId) public isRegisteredVoter(_address) voterDidnotVote(_address, _proposalId) isVotingSessionOpen() {
         Voter memory voter = whitelist[_address];
         proposalList[_proposalId].voteCount++;
         voter.hasVoted = true;
@@ -132,6 +155,8 @@ contract Voting is Ownable {
 
     /**
      * @dev Count the votes and determine the winner proposal
+     * TODO: check for equality. Currently if there's equality in voting counts between 
+     * all proposals, the last checked proposal is the winner
      */
     function countVotes() external onlyOwner {
         uint tmp = 1;
@@ -162,6 +187,13 @@ contract Voting is Ownable {
             whitelist[voterList[i]].hasVoted = false;
             whitelist[voterList[i]].votedProposalId = 999999;
         }
+    }
+
+    /**
+     * @dev Getter for the proposal list
+     */
+    function getProposalList() public view returns (Proposal[] memory) {
+        return proposalList;
     }
 
     /**
